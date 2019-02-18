@@ -41,7 +41,7 @@ func (c *Cache) Save(item *Item) error {
 
 	err := c.container.Save(item.Key(), item)
 	if err != nil {
-		return errors.Wrapf(err, "cache: could not save cache item with key %q to container", item.Key)
+		return errors.Wrapf(err, "cache: could not save cache item with key %q to container", item.Key())
 	}
 
 	return nil
