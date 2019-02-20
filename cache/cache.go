@@ -39,9 +39,9 @@ func (c *Cache) Save(item *Item) error {
 		return errors.New("cache: item cannot be nil")
 	}
 
-	err := c.container.Save(item.Key(), item)
+	err := c.container.Save(item.Key, item)
 	if err != nil {
-		return errors.Wrapf(err, "cache: could not save cache item with key %q to container", item.Key())
+		return errors.Wrapf(err, "cache: could not save cache item with key %q to container", item.Key)
 	}
 
 	return nil
@@ -70,8 +70,8 @@ func (c *Cache) Get(key string) (*Item, error) {
 
 		return nil, nil
 	}
-	item.Access()                            // update last accessed time
-	err = c.container.Save(item.Key(), item) // save the item to container
+	item.access()                          // update last accessed time
+	err = c.container.Save(item.Key, item) // save the item to container
 	if err != nil {
 		return nil, errors.Wrapf(err, "cache: could not update item timestamp with key %q", key)
 	}
