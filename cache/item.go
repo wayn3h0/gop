@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"bytes"
+	"encoding/gob"
 	"time"
 
 	"github.com/wayn3h0/gop/cache/dependency"
@@ -9,91 +11,90 @@ import (
 
 // Item represents a cache item.
 type Item struct {
-	key                     string
-	value                   interface{}
-	createdAt               time.Time
-	accessedAt              time.Time
-	absoluteExpirationTime  time.Time
-	slidingExpirationPeriod time.Duration
-	dependencies            []dependency.Dependency
-}
-
-// Key returns the key of item.
-func (i *Item) Key() string {
-	return i.key
-}
-
-// Value returns the value of item.
-func (i *Item) Value() interface{} {
-	return i.value
-}
-
-// CreatedAt returns the creation timestamp of item.
-func (i *Item) CreatedAt() time.Time {
-	return i.createdAt
-}
-
-// AccessedAt returns the last accessed timestamp of item.
-func (i *Item) AccessedAt() time.Time {
-	return i.accessedAt
+	Key                     string
+	Value                   interface{}
+	CreatedAt               time.Time
+	AccessedAt              time.Time
+	AbsoluteExpirationTime  time.Time
+	SlidingExpirationPeriod time.Duration
+	Dependencies            []dependency.Dependency
 }
 
 // Access updates the last accessed timestamp.
-func (i *Item) Access() {
-	i.accessedAt = time.Now()
+func (i *Item) access() {
+	i.AccessedAt = time.Now()
 }
 
-// SetValue sets the value of item.
-func (i *Item) SetValue(v interface{}) *Item {
-	i.value = v
-	return i
+// SetAbsoluteExpiration sets the Absolute expiration for item.
+func (i *Item) SetAbsoluteExpiration(Absolute time.Time) {
+	i.AbsoluteExpirationTime = Absolute
 }
 
-// SetAbsoluteExpirationTime sets the absolute expiration time for item.
-func (i *Item) SetAbsoluteExpirationTime(v time.Time) *Item {
-	i.absoluteExpirationTime = v
-	return i
-}
-
-// SetSlidingExpirationPeriod sets the sliding expiration duration for item.
-func (i *Item) SetSlidingExpirationPeriod(v time.Duration) *Item {
-	i.slidingExpirationPeriod = v
-	return i
+// SetSlidingExpiration sets the Sliding expiration for item.
+func (i *Item) SetSlidingExpiration(Sliding time.Duration) {
+	i.SlidingExpirationPeriod = Sliding
 }
 
 // SetDependencies sets the Dependencies for item.
-func (i *Item) SetDependencies(deps ...dependency.Dependency) *Item {
-	i.dependencies = deps
-	return i
+func (i *Item) SetDependencies(Dependencies ...dependency.Dependency) {
+	i.Dependencies = Dependencies
 }
 
 // HasExpired reports whether the item has expired.
 func (i *Item) HasExpired() bool {
-	if !i.absoluteExpirationTime.IsZero() { // check absolute expiration time
-		if i.absoluteExpirationTime.Before(time.Now()) {
+	if !i.AbsoluteExpirationTime.IsZero() { // check absolute expiration time
+		if i.AbsoluteExpirationTime.Before(time.Now()) {
 			return true
 		}
 	}
-	if i.slidingExpirationPeriod > 0 { // check sliding expiration period
-		if !i.accessedAt.IsZero() { // accessed
-			if i.accessedAt.Add(i.slidingExpirationPeriod).Before(time.Now()) {
+	if i.SlidingExpirationPeriod > 0 { // check sliding expiration period
+		if !i.AccessedAt.IsZero() { // accessed
+			if i.AccessedAt.Add(i.SlidingExpirationPeriod).Before(time.Now()) {
 				return true
 			}
 		} else { // never accessed
-			if i.createdAt.Add(i.slidingExpirationPeriod).Before(time.Now()) {
+			if i.CreatedAt.Add(i.SlidingExpirationPeriod).Before(time.Now()) {
 				return true
 			}
 		}
 	}
 
 	// check dependencies
-	for _, dep := range i.dependencies {
+	for _, dep := range i.Dependencies {
 		if dep.HasChanged() {
 			return true
 		}
 	}
 
 	return false
+}
+
+// Marshal marshals the item to byte data by gob.
+func (i *Item) MarshalGob() ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(i)
+	if err != nil {
+		return nil, errors.Wrap(err, "cache: could not marshal item to Gob data")
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// Unmarshal unmarshals the item from byte data by gob.
+func (i *Item) UnmarshalGob(data []byte) error {
+	decoder := gob.NewDecoder(bytes.NewBuffer(data))
+	err := decoder.Decode(i)
+	if err != nil {
+		return errors.Wrap(err, "cache: could not unmarshal item from Gob data")
+	}
+
+	return nil
+}
+
+// registers types for gob encoding.
+func init() {
+	gob.Register(Item{})
 }
 
 // NewItem returns a new item.
@@ -103,8 +104,18 @@ func NewItem(key string, value interface{}) (*Item, error) {
 	}
 
 	return &Item{
-		key:       key,
-		value:     value,
-		createdAt: time.Now(),
+		Key:       key,
+		Value:     value,
+		CreatedAt: time.Now(),
 	}, nil
+}
+
+// MustNewItem is like as NewItem but panic if key is empty.
+func MustNewItem(key string, value interface{}) *Item {
+	item, err := NewItem(key, value)
+	if err != nil {
+		panic(err)
+	}
+
+	return item
 }
