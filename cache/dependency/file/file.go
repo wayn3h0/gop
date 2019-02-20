@@ -1,20 +1,21 @@
 package file
 
 import (
+	"encoding/gob"
 	"os"
 	"time"
 
 	dep "github.com/wayn3h0/gop/cache/dependency"
 )
 
-// dependency represents a file dependency.
+// Dependency represents a file dependency.
 type dependency struct {
 	Path             string
 	LastModifiedTime time.Time
 }
 
 // HasChanged reports whether the file has changed.
-func (d *dependency) HasChanged() bool {
+func (d dependency) HasChanged() bool {
 	fi, err := os.Stat(d.Path)
 	if err != nil {
 		return true
@@ -37,4 +38,8 @@ func NewDependency(path string) dep.Dependency {
 		Path:             path,
 		LastModifiedTime: lastModifiedTime,
 	}
+}
+
+func init() {
+	gob.Register(dependency{})
 }
