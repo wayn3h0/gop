@@ -48,7 +48,7 @@ func (c Container) Available() bool {
 // NewContainer returns a new memory cache.
 func (c Container) NewContainer(capacity int) ctn.Container {
 	if !c.Available() {
-		panic(errors.Newf("cache: requested memory container function #%i is unavailable", int(c)))
+		panic(errors.Newf("cache: requested memory container function #%d is unavailable", int(c)))
 	}
 
 	return containers[c](capacity)
